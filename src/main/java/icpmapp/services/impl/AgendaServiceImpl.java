@@ -30,10 +30,7 @@ public class AgendaServiceImpl implements AgendaService {
     private final UserRepository userRepository;
 
     public List<SessionHeaderDTO> fetchAll() {
-        return sessionHeaderRepository.findSessionsWithLikes(); //sessionHeaderRepository.findAll();
-//        return headers.stream()
-//                .map(SessionHeaderDTO::new)
-//                .collect(Collectors.toList());
+        return sessionHeaderRepository.findPublishedSessionsWithLikes();
     }
 
     @Override
@@ -117,10 +114,25 @@ public class AgendaServiceImpl implements AgendaService {
 
     public List<SessionHeaderDTO> findLikedSessionsByUser(Integer userId){
         List<SessionHeader> likedSessions = sessionHeaderRepository.findByLikes_Id(userId);
-        return likedSessions.stream().map(this::convertToDto).collect(Collectors.toList());
+        return likedSessions.stream()
+                .filter(session -> Boolean.TRUE.equals(session.getIsPublished()))
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<SessionHeaderDTO> findLikedSessionsByUsername(String username) {
+        User user = userRepository.findByEmail(username)
+            .orElseThrow(() -> new UsernameNotFoundException(
+                "User not found with email: " + username
+            ));
+        return findLikedSessionsByUser(user.getId());
     }
 
     public SessionHeaderDTO convertToDto(SessionHeader session) {
+        String trackId = session.getTrack() != null ? session.getTrack().getId() : null;
+        String trackName = session.getTrack() != null ? session.getTrack().getName() : null;
+        String trackColor = session.getTrack() != null ? session.getTrack().getColor() : null;
         return new SessionHeaderDTO(
                 session.getId(),
                 session.getName(),
@@ -129,7 +141,10 @@ public class AgendaServiceImpl implements AgendaService {
                 session.getStartTime(),
                 session.getEndTime(),
                 session.getType(),
-                0l
+                0l,
+                trackId,
+                trackName,
+                trackColor
         );
     }
 
